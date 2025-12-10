@@ -3,102 +3,104 @@ import { fetchKpis } from '../services/api';
 
 const Dashboard = () => {
     const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(true);
-
-    const refreshData = async () => {
-        setLoading(true);
-        try {
-            const result = await fetchKpis();
-            setData(result || {});
-        } catch (e) {
-            console.error(e);
-        }
-        setLoading(false);
-    };
 
     useEffect(() => {
-        refreshData();
+        const load = async () => {
+            const res = await fetchKpis();
+            setData(res || {});
+        };
+        load();
     }, []);
 
-    // Sécurisation des données pour éviter le crash si vide
-    const kpi = data || {};
-    const mon = data?.monitoring || { status: 'UNKNOWN', logs: [] };
-
-    // Styles (Design System Dark OODA)
+    const d = data || {};
+    
+    // Style Système "Data Analyst"
     const styles = {
-        page: { backgroundColor: '#0f172a', minHeight: '100vh', color: '#f8fafc', fontFamily: 'Inter, sans-serif', padding: '24px' },
-        header: { borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-        h1: { fontSize: '24px', fontWeight: '700', margin: 0 },
-        tag: { fontSize: '11px', backgroundColor: '#1e293b', padding: '4px 8px', borderRadius: '4px', color: '#94a3b8', border: '1px solid #475569', marginLeft: '10px' },
-        
-        grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' },
-        card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', position: 'relative' },
-        label: { fontSize: '13px', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' },
-        value: { fontSize: '32px', fontWeight: '700', color: '#fff' },
-        sub: { fontSize: '13px', marginTop: '4px' },
-        
-        monitorSection: { backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '12px', padding: '24px', marginTop: '40px' },
-        monitorHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '20px' },
-        statusDot: (status) => ({
-            height: '10px', width: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '8px',
-            backgroundColor: status === 'SUCCESS' ? '#10b981' : status === 'CRITICAL_FAILURE' ? '#ef4444' : '#64748b'
-        }),
-        console: { backgroundColor: '#000', color: '#22c55e', padding: '15px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '12px', height: '150px', overflowY: 'auto' }
+        bg: {background: '#0f172a', minHeight: '100vh', color: 'white', padding: '24px', fontFamily: 'Inter, sans-serif'},
+        grid: {display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '24px'},
+        card: {background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155'},
+        label: {color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px'},
+        value: {fontSize: '28px', fontWeight: '700', color: '#f8fafc'},
+        sub: {fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px'},
+        sectionTitle: {fontSize: '18px', fontWeight: '600', color: '#e2e8f0', marginTop: '40px', marginBottom: '20px', borderLeft: '4px solid #3b82f6', paddingLeft: '10px'},
+        table: {width: '100%', borderCollapse: 'collapse', fontSize: '14px'},
+        th: {textAlign: 'left', color: '#64748b', padding: '10px', borderBottom: '1px solid #334155'},
+        td: {padding: '10px', borderBottom: '1px solid #1e293b', color: '#cbd5e1'}
     };
 
     return (
-        <div style={styles.page}>
-            {/* Header */}
-            <div style={styles.header}>
+        <div style={styles.bg}>
+            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px'}}>
                 <div>
-                    <h1 style={styles.h1}>OODA PIPELINE <span style={styles.tag}>SAINT-ANDRÉ</span></h1>
+                    <h1 style={{fontSize: '24px', fontWeight: 'bold', margin: 0}}>OODA SAINT-ANDRÉ</h1>
+                    <div style={{color: '#64748b', fontSize: '14px'}}>Objectif Municipales 2026</div>
                 </div>
-                <button onClick={refreshData} style={{background: '#2563eb', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>
-                    Actualiser
-                </button>
+                <div style={{textAlign: 'right'}}>
+                    <div style={{fontSize: '12px', color: '#64748b'}}>Dernier Scan</div>
+                    <div style={{color: '#10b981', fontWeight: 'bold'}}>{d.last_update || "En attente"}</div>
+                </div>
             </div>
 
-            {/* KPIs */}
+            {/* SOCIO-DEMOGRAPHIE (API GOUV) */}
+            <div style={styles.sectionTitle}>1. TERRAIN & SOCIOLOGIE</div>
             <div style={styles.grid}>
                 <div style={styles.card}>
-                    <div style={styles.label}>Population</div>
-                    <div style={styles.value}>{kpi.population_est || "..."}</div>
-                    <div style={{...styles.sub, color: '#10b981'}}>{kpi.evolution}</div>
+                    <div style={styles.label}>Population Totale</div>
+                    <div style={styles.value}>{d.population_est || "-"}</div>
+                    <div style={{...styles.sub, color: '#3b82f6'}}>Densité : {d.densite}</div>
                 </div>
                 <div style={styles.card}>
-                    <div style={styles.label}>Maire Actuel</div>
-                    <div style={styles.value}>{kpi.maire_actuel_nom || "..."}</div>
-                    <div style={{...styles.sub, color: '#3b82f6'}}>{kpi.maire_actuel_score}</div>
+                    <div style={styles.label}>Taux de Chômage</div>
+                    <div style={{...styles.value, color: '#f87171'}}>{d.taux_chomage || "-"}</div>
+                    <div style={styles.sub}>Indicateur de précarité</div>
                 </div>
                 <div style={styles.card}>
-                    <div style={styles.label}>Archives Presse</div>
-                    <div style={styles.value}>{kpi.archives_presse_count || "0"}</div>
-                    <div style={{...styles.sub, color: '#94a3b8'}}>Indexés</div>
+                    <div style={styles.label}>Jeunesse (-25 ans)</div>
+                    <div style={styles.value}>{d.part_jeunes || "-"}</div>
+                    <div style={styles.sub}>Cible électorale clé</div>
                 </div>
                 <div style={styles.card}>
-                    <div style={styles.label}>Données Électorales</div>
-                    <div style={styles.value}>{kpi.donnees_elections_completion || "0%"}</div>
-                    <div style={{...styles.sub, color: '#10b981'}}>1976-2020</div>
+                    <div style={styles.label}>Revenu Médian</div>
+                    <div style={styles.value}>{d.revenu_median || "-"}</div>
                 </div>
             </div>
 
-            {/* Monitoring Console */}
-            <div style={styles.monitorSection}>
-                <div style={styles.monitorHeader}>
-                    <h3 style={{margin: 0, fontSize: '16px'}}>📡 Console de Monitoring</h3>
-                    <div style={{fontSize: '14px', display: 'flex', alignItems: 'center'}}>
-                        <span style={styles.statusDot(mon.status)}></span>
-                        {mon.status || "WAITING"} | Dernière exécution : {mon.last_execution || "Aucune"}
-                    </div>
+            {/* POLITIQUE */}
+            <div style={styles.sectionTitle}>2. DYNAMIQUE POLITIQUE</div>
+            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px'}}>
+                <div style={styles.card}>
+                    <div style={styles.label}>Maire Sortant</div>
+                    <div style={styles.value}>{d.maire_actuel_nom || "-"}</div>
+                    <div style={{...styles.sub, color: '#10b981', fontWeight: 'bold'}}>{d.maire_actuel_score}</div>
+                    <div style={{marginTop: '15px', fontSize: '13px', color: '#94a3b8'}}>{d.tendance_2020}</div>
                 </div>
-                
-                {/* Console Log View */}
-                <div style={styles.console}>
-                    {mon.execution_logs && mon.execution_logs.length > 0 ? (
-                        mon.execution_logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)
-                    ) : (
-                        <div>Waiting for system logs...</div>
-                    )}
+
+                <div style={styles.card}>
+                    <div style={styles.label}>Historique des Cycles</div>
+                    <table style={styles.table}>
+                        <thead>
+                            <tr>
+                                <th style={styles.th}>Année</th>
+                                <th style={styles.th}>Vainqueur</th>
+                                <th style={styles.th}>Étiquette</th>
+                                <th style={styles.th}>Score</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {d.historique_maires ? d.historique_maires.map((m, i) => (
+                                <tr key={i}>
+                                    <td style={{...styles.td, color: '#64748b'}}>{m.annee}</td>
+                                    <td style={{...styles.td, fontWeight: 'bold'}}>{m.vainqueur}</td>
+                                    <td style={styles.td}>
+                                        <span style={{padding: '2px 6px', borderRadius: '4px', background: m.parti === 'DVG' || m.parti === 'PCR' ? '#7f1d1d' : '#1e3a8a', color: 'white', fontSize: '10px'}}>
+                                            {m.parti}
+                                        </span>
+                                    </td>
+                                    <td style={styles.td}>{m.score}</td>
+                                </tr>
+                            )) : <tr><td colSpan="4" style={styles.td}>Chargement...</td></tr>}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
