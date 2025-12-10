@@ -33,3 +33,4 @@ export const fetchBureauxDeVote = async (annee) => {
 };
 
 // ... autres fonctions API
+
