@@ -4,7 +4,7 @@ import os
 import subprocess
 import sys
 import json
-from scraper.google_drive_manager import GoogleDriveManager
+from scraper_backend.scraper.google_drive_manager import GoogleDriveManager
 
 app = FastAPI()
 
