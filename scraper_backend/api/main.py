@@ -1,16 +1,13 @@
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import json
-import io
 import subprocess
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseDownload
+import sys
+import json
+from scraper.google_drive_manager import GoogleDriveManager
 
 app = FastAPI()
 
-# Configuration CORS (Autorise tout pour la démo, à restreindre en prod stricte)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,82 +15,69 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- FONCTIONS UTILITAIRES (Drive & System) ---
-
-def get_drive_service():
-    """Crée la connexion sécurisée Google Drive"""
+# --- 1. TEST DE CONNEXION DRIVE (Immédiat) ---
+@app.get("/test-drive")
+def test_drive_connection():
     try:
         creds_path = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
-        json_content = os.environ.get('SERVICE_ACCOUNT_JSON')
-
-        # Régénération de la clé si absente (Contexte Render)
-        if json_content and not os.path.exists(creds_path):
+        # On force la création du fichier clé
+        if os.environ.get('SERVICE_ACCOUNT_JSON'):
             with open(creds_path, 'w') as f:
-                f.write(json_content)
-
-        SCOPES = ['https://www.googleapis.com/auth/drive']
-        creds = service_account.Credentials.from_service_account_file(creds_path, scopes=SCOPES)
-        return build('drive', 'v3', credentials=creds)
+                f.write(os.environ.get('SERVICE_ACCOUNT_JSON'))
+        
+        folder_id = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
+        filename = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
+        
+        gd = GoogleDriveManager(creds_path, folder_id, filename)
+        # Test de lecture simple pour voir si ça connecte
+        gd._find_file_id() 
+        return {"status": "SUCCÈS", "message": "Connexion Google Drive établie !"}
     except Exception as e:
-        print(f"Auth Error: {e}")
-        return None
+        return {"status": "ÉCHEC", "error": str(e)}
 
-def download_master_json():
-    """Télécharge le fichier de données + monitoring"""
-    service = get_drive_service()
-    if not service: return None
-
-    folder_id = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
-    filename = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
+# --- 2. DIAGNOSTIC COMPLET DU ROBOT (La Boîte Noire) ---
+@app.get("/debug-full")
+def debug_scraper():
+    """
+    Lance le robot et CAPTURE tout ce qu'il dit (Erreurs comprises).
+    Affiche le résultat directement à l'écran.
+    """
+    print("🕵️ Lancement du diagnostic complet...")
     
-    query = f"name='{filename}' and '{folder_id}' in parents and trashed=false"
-    results = service.files().list(q=query, spaces='drive', fields='files(id)').execute()
-    items = results.get('files', [])
+    # Commande exacte pour lancer Scrapy
+    command = ["scrapy", "crawl", "elections_saint_andre"]
     
-    if not items: return None
+    try:
+        # On lance le processus en attendant la réponse (timeout 60s)
+        # cwd="scraper_backend" est crucial car on est à la racine sur Render
+        result = subprocess.run(
+            command,
+            cwd="scraper_backend",
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        
+        return {
+            "EXIT_CODE": result.returncode,
+            "STDOUT (Ce qui a marché)": result.stdout,
+            "STDERR (Les Erreurs)": result.stderr
+        }
+    except Exception as e:
+        return {"CRITICAL_ERROR": str(e)}
 
-    request = service.files().get_media(fileId=items[0]['id'])
-    fh = io.BytesIO()
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-    while done is False: status, done = downloader.next_chunk()
-    
-    fh.seek(0)
-    return json.load(fh)
-
-def run_spider_subprocess():
-    """Exécute le script Scrapy dans un processus isolé"""
-    print("🚀 API : Lancement du processus Scrapy...")
-    subprocess.run(["scrapy", "crawl", "elections_saint_andre"], cwd="scraper_backend")
-
-# --- ENDPOINTS API ---
-
-@app.get("/")
-def read_root():
-    return {"system": "OODA API", "status": "ONLINE", "version": "2.0"}
-
-@app.get("/health")
-def health_check():
-    """Monitoring technique de l'API elle-même"""
-    return {
-        "api_status": "UP",
-        "drive_configured": bool(os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')),
-        "credentials_present": bool(os.environ.get('SERVICE_ACCOUNT_JSON'))
-    }
-
+# --- 3. Route standard pour le site ---
 @app.get("/kpis")
 def get_kpis():
-    """Renvoie les données + le rapport de monitoring"""
-    data = download_master_json()
-    if data:
-        return data
-    return {
-        "population_est": "En attente...",
-        "monitoring": {"status": "NO_DATA", "last_execution": "Jamais"}
-    }
+    # Lecture du fichier Drive
+    try:
+        creds = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
+        folder = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
+        file = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
+        gd = GoogleDriveManager(creds, folder, file)
+        return gd.get_master_data() or {"error": "Fichier vide ou absent"}
+    except:
+        return {"population_est": "En attente..."}
 
-@app.get("/trigger-scrape")
-async def trigger_scrape(background_tasks: BackgroundTasks):
-    """Bouton poussoir pour lancer le robot"""
-    background_tasks.add_task(run_spider_subprocess)
-    return {"status": "ACCEPTED", "message": "Le robot a été lancé en arrière-plan. Vérifiez le monitoring dans 1 minute."}
+@app.get("/")
+def root(): return {"status": "Mode Diagnostic Activé"}
