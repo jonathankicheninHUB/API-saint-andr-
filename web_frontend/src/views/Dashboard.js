@@ -129,3 +129,4 @@ const PipelineStage = ({ name, status, color }) => (
 );
 
 export default Dashboard;
+
