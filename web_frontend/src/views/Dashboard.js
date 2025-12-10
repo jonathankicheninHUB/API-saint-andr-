@@ -2,86 +2,107 @@ import React, { useState, useEffect } from 'react';
 import { fetchKpis } from '../services/api';
 
 const Dashboard = () => {
-    const [kpis, setKpis] = useState(null);
+    const [data, setData] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    const refreshData = async () => {
+        setLoading(true);
+        try {
+            const result = await fetchKpis();
+            setData(result || {});
+        } catch (e) {
+            console.error(e);
+        }
+        setLoading(false);
+    };
 
     useEffect(() => {
-        const loadData = async () => {
-            try {
-                const data = await fetchKpis();
-                setKpis(data || {});
-            } catch (e) { console.error(e); }
-        };
-        loadData();
+        refreshData();
     }, []);
 
-    // Données par défaut (Design Maquette) si l'API est vide
-    const d = kpis || {};
-    const pop = d.population_est || "58,588";
-    const maire = d.maire_actuel_nom || "Joé Bédier";
-    const presse = d.archives_presse_count || "12,405";
-    const elec = d.donnees_elections_completion || "100%";
+    // Sécurisation des données pour éviter le crash si vide
+    const kpi = data || {};
+    const mon = data?.monitoring || { status: 'UNKNOWN', logs: [] };
+
+    // Styles (Design System Dark OODA)
+    const styles = {
+        page: { backgroundColor: '#0f172a', minHeight: '100vh', color: '#f8fafc', fontFamily: 'Inter, sans-serif', padding: '24px' },
+        header: { borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+        h1: { fontSize: '24px', fontWeight: '700', margin: 0 },
+        tag: { fontSize: '11px', backgroundColor: '#1e293b', padding: '4px 8px', borderRadius: '4px', color: '#94a3b8', border: '1px solid #475569', marginLeft: '10px' },
+        
+        grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '30px' },
+        card: { backgroundColor: '#1e293b', padding: '24px', borderRadius: '12px', border: '1px solid #334155', position: 'relative' },
+        label: { fontSize: '13px', color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.05em' },
+        value: { fontSize: '32px', fontWeight: '700', color: '#fff' },
+        sub: { fontSize: '13px', marginTop: '4px' },
+        
+        monitorSection: { backgroundColor: '#111827', border: '1px solid #374151', borderRadius: '12px', padding: '24px', marginTop: '40px' },
+        monitorHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '20px' },
+        statusDot: (status) => ({
+            height: '10px', width: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '8px',
+            backgroundColor: status === 'SUCCESS' ? '#10b981' : status === 'CRITICAL_FAILURE' ? '#ef4444' : '#64748b'
+        }),
+        console: { backgroundColor: '#000', color: '#22c55e', padding: '15px', borderRadius: '8px', fontFamily: 'monospace', fontSize: '12px', height: '150px', overflowY: 'auto' }
+    };
 
     return (
-        <div style={{backgroundColor: '#0f172a', minHeight: '100vh', color: 'white', fontFamily: 'sans-serif', padding: '20px'}}>
-            {/* En-tête */}
-            <div style={{display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #334155', paddingBottom: '20px', marginBottom: '20px'}}>
-                <h1 style={{margin: 0, fontSize: '24px'}}>Tableau de Bord <span style={{fontSize:'12px', background:'#1e293b', padding:'4px 8px', borderRadius:'4px', color:'#94a3b8', border:'1px solid #475569'}}>ENV: PRODUCTION</span></h1>
-                <div style={{textAlign:'right', fontSize:'12px', color:'#94a3b8'}}>OODA PIPELINE<br/>Saint-André 1976-2026</div>
+        <div style={styles.page}>
+            {/* Header */}
+            <div style={styles.header}>
+                <div>
+                    <h1 style={styles.h1}>OODA PIPELINE <span style={styles.tag}>SAINT-ANDRÉ</span></h1>
+                </div>
+                <button onClick={refreshData} style={{background: '#2563eb', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer'}}>
+                    Actualiser
+                </button>
             </div>
 
-            {/* Cartes KPI */}
-            <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px'}}>
-                <Card title="Population (Est. 2025)" value={pop} sub="+3.45% vs 2016" subColor="#10b981" />
-                <Card title="Maire Actuel" value={maire} sub="Élu en 2020 (52.16%)" subColor="#3b82f6" />
-                <Card title="Archives Presse" value={presse} sub="Articles JIR/Clicanoo indexés" subColor="#9ca3af" />
-                <Card title="Données Élections" value={elec} sub="1976-2020 complet" subColor="#10b981" />
+            {/* KPIs */}
+            <div style={styles.grid}>
+                <div style={styles.card}>
+                    <div style={styles.label}>Population</div>
+                    <div style={styles.value}>{kpi.population_est || "..."}</div>
+                    <div style={{...styles.sub, color: '#10b981'}}>{kpi.evolution}</div>
+                </div>
+                <div style={styles.card}>
+                    <div style={styles.label}>Maire Actuel</div>
+                    <div style={styles.value}>{kpi.maire_actuel_nom || "..."}</div>
+                    <div style={{...styles.sub, color: '#3b82f6'}}>{kpi.maire_actuel_score}</div>
+                </div>
+                <div style={styles.card}>
+                    <div style={styles.label}>Archives Presse</div>
+                    <div style={styles.value}>{kpi.archives_presse_count || "0"}</div>
+                    <div style={{...styles.sub, color: '#94a3b8'}}>Indexés</div>
+                </div>
+                <div style={styles.card}>
+                    <div style={styles.label}>Données Électorales</div>
+                    <div style={styles.value}>{kpi.donnees_elections_completion || "0%"}</div>
+                    <div style={{...styles.sub, color: '#10b981'}}>1976-2020</div>
+                </div>
             </div>
 
-            {/* Section Principale */}
-            <div style={{display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '20px'}}>
-                {/* Carte */}
-                <div style={{backgroundColor: '#1e293b', borderRadius: '10px', padding: '20px', border: '1px solid #334155', minHeight: '400px'}}>
-                    <h3 style={{margin: '0 0 15px 0'}}>Couverture Bureaux de Vote</h3>
-                    <div style={{height: '350px', background: '#0f172a', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px dashed #475569', color: '#64748b'}}>
-                        CARTE INTERACTIVE (Données GPS en cours de chargement...)
+            {/* Monitoring Console */}
+            <div style={styles.monitorSection}>
+                <div style={styles.monitorHeader}>
+                    <h3 style={{margin: 0, fontSize: '16px'}}>📡 Console de Monitoring</h3>
+                    <div style={{fontSize: '14px', display: 'flex', alignItems: 'center'}}>
+                        <span style={styles.statusDot(mon.status)}></span>
+                        {mon.status || "WAITING"} | Dernière exécution : {mon.last_execution || "Aucune"}
                     </div>
                 </div>
-
-                {/* Pipeline */}
-                <div style={{backgroundColor: '#1e293b', borderRadius: '10px', padding: '20px', border: '1px solid #334155'}}>
-                    <h3 style={{margin: '0 0 20px 0'}}>État du Pipeline</h3>
-                    <PipelineRow name="SCRAPING (INSEE)" status="PRÊT" color="#10b981" width="100%" />
-                    <PipelineRow name="PRESSE (JIR)" status="EN ATTENTE" color="#f59e0b" width="60%" />
-                    <PipelineRow name="NORMALISATION" status="IDLE" color="#334155" width="0%" />
-                    
-                    <button style={{width: '100%', marginTop: '30px', background: '#6366f1', color: 'white', border: 'none', padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'}}>
-                        📥 Télécharger le Pack (.zip)
-                    </button>
+                
+                {/* Console Log View */}
+                <div style={styles.console}>
+                    {mon.execution_logs && mon.execution_logs.length > 0 ? (
+                        mon.execution_logs.map((log, i) => <div key={i}>{`> ${log}`}</div>)
+                    ) : (
+                        <div>Waiting for system logs...</div>
+                    )}
                 </div>
             </div>
         </div>
     );
 };
-
-// Petits composants pour le design
-const Card = ({title, value, sub, subColor}) => (
-    <div style={{backgroundColor: '#1e293b', padding: '20px', borderRadius: '10px', border: '1px solid #334155'}}>
-        <div style={{color: '#9ca3af', fontSize: '14px', marginBottom: '5px'}}>{title}</div>
-        <div style={{fontSize: '32px', fontWeight: 'bold', marginBottom: '5px'}}>{value}</div>
-        <div style={{color: subColor, fontSize: '13px'}}>{sub}</div>
-    </div>
-);
-
-const PipelineRow = ({name, status, color, width}) => (
-    <div style={{marginBottom: '20px'}}>
-        <div style={{display: 'flex', justifyContent: 'space-between', marginBottom: '5px', fontSize: '13px'}}>
-            <span>{name}</span>
-            <span style={{color: color, fontWeight: 'bold'}}>{status}</span>
-        </div>
-        <div style={{height: '6px', background: '#334155', borderRadius: '3px'}}>
-            <div style={{height: '100%', width: width, background: color, borderRadius: '3px'}}></div>
-        </div>
-    </div>
-);
 
 export default Dashboard;
