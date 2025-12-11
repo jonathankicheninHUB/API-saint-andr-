@@ -1,11 +1,9 @@
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import json
-import io
 import subprocess
-# Importation du manager (avec le chemin complet pour éviter les erreurs)
-from scraper.google_drive_manager import GoogleDriveManager
+# Import correct du module
+from scraper_backend.scraper.google_drive_manager import GoogleDriveManager
 
 app = FastAPI()
 
@@ -16,64 +14,61 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 1. FONCTION DE LECTURE DRIVE ---
-def get_data_from_drive():
-    try:
-        # Récupération des secrets
-        creds_path = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
-        folder_id = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
-        filename = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
-        
-        # On recrée le fichier clé si nécessaire (contexte Render)
-        json_content = os.environ.get('SERVICE_ACCOUNT_JSON')
-        if json_content:
-            with open(creds_path, 'w') as f:
-                f.write(json_content)
+# --- UTILITAIRE : Récupérer le Manager Drive ---
+def get_gd_manager():
+    creds_path = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
+    folder_id = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
+    filename = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
+    
+    # Création du fichier clé si nécessaire (contexte Render)
+    if os.environ.get('SERVICE_ACCOUNT_JSON'):
+        with open(creds_path, 'w') as f:
+            f.write(os.environ.get('SERVICE_ACCOUNT_JSON'))
+            
+    return GoogleDriveManager(creds_path, folder_id, filename)
 
-        # Connexion
-        gd = GoogleDriveManager(creds_path, folder_id, filename)
-        
-        # Téléchargement
-        data = gd.get_master_data()
-        return data
-    except Exception as e:
-        print(f"ERREUR LECTURE DRIVE: {e}")
-        return None
-
-# --- 2. ENDPOINT DASHBOARD (Ce que le site affiche) ---
+# --- 1. ENDPOINT LECTURE (Pour le site) ---
 @app.get("/kpis")
 def get_kpis():
-    data = get_data_from_drive()
-    if data:
-        return data
-    else:
-        # Données d'attente si le fichier est vide ou inaccessible
+    try:
+        gd = get_gd_manager()
+        data = gd.get_master_data()
+        if data:
+            return data
         return {
             "population_est": "En attente...",
-            "maire_actuel_nom": "Initialisation...",
-            "system_monitoring": {
-                "status": "WAITING",
-                "logs": ["En attente de la première exécution du robot"]
-            }
+            "system_monitoring": {"status": "WAITING", "logs": ["Fichier vide ou absent"]}
         }
+    except Exception as e:
+        return {"error": str(e), "population_est": "Erreur connexion"}
 
-# --- 3. ENDPOINT ROBOT (Le Déclencheur) ---
+# --- 2. ENDPOINT ROBOT (Pour lancer le scraping) ---
 def run_spider_task():
     print("🕷️ Lancement du Scrapy Spider...")
-    # On lance la commande depuis le dossier parent
-    subprocess.run(["scrapy", "crawl", "elections_saint_andre"], cwd="/opt/render/project/src/scraper_backend")
+    # On lance depuis le dossier racine 'scraper_backend' où se trouve scrapy.cfg
+    subprocess.run(["scrapy", "crawl", "elections_saint_andre"], cwd="scraper_backend")
 
 @app.get("/trigger-scrape")
 async def trigger_scrape(background_tasks: BackgroundTasks):
     background_tasks.add_task(run_spider_task)
-    return {"status": "SUCCÈS", "message": "Robot lancé ! Vérifiez le fichier sur Drive dans 30 secondes."}
+    return {"status": "SUCCÈS", "message": "Robot lancé ! Vérifiez le fichier sur Drive dans 30s."}
 
-# --- 4. ENDPOINT DIAGNOSTIC (Pour vérifier que ça marche) ---
+# --- 3. ENDPOINTS DIAGNOSTIC (Pour vérifier les pannes) ---
+@app.get("/test-drive")
+def test_drive():
+    try:
+        gd = get_gd_manager()
+        file_id = gd._find_file_id()
+        return {"status": "SUCCÈS", "message": f"Connexion OK. Fichier ID: {file_id}"}
+    except Exception as e:
+        return {"status": "ÉCHEC", "error": str(e)}
+
 @app.get("/debug-full")
 def debug_full():
+    # Lance le robot en mode verbeux et capture la sortie
     result = subprocess.run(
         ["scrapy", "crawl", "elections_saint_andre"],
-        cwd="/opt/render/project/src/scraper_backend",
+        cwd="scraper_backend",
         capture_output=True,
         text=True
     )
@@ -81,4 +76,4 @@ def debug_full():
 
 @app.get("/")
 def root():
-    return {"status": "API En Ligne", "version": "Finale"}
+    return {"status": "API En Ligne", "version": "Finale Corrigée"}
