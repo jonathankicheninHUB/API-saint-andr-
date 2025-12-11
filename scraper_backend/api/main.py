@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 import os
-import subprocess
-import sys
 import json
-from scraper_backend.scraper.google_drive_manager import GoogleDriveManager
+import io
+import subprocess
+# Importation du manager (avec le chemin complet pour éviter les erreurs)
+from scraper.google_drive_manager import GoogleDriveManager
 
 app = FastAPI()
 
@@ -15,69 +16,69 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- 1. TEST DE CONNEXION DRIVE (Immédiat) ---
-@app.get("/test-drive")
-def test_drive_connection():
+# --- 1. FONCTION DE LECTURE DRIVE ---
+def get_data_from_drive():
     try:
+        # Récupération des secrets
         creds_path = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
-        # On force la création du fichier clé
-        if os.environ.get('SERVICE_ACCOUNT_JSON'):
-            with open(creds_path, 'w') as f:
-                f.write(os.environ.get('SERVICE_ACCOUNT_JSON'))
-        
         folder_id = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
         filename = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
         
+        # On recrée le fichier clé si nécessaire (contexte Render)
+        json_content = os.environ.get('SERVICE_ACCOUNT_JSON')
+        if json_content:
+            with open(creds_path, 'w') as f:
+                f.write(json_content)
+
+        # Connexion
         gd = GoogleDriveManager(creds_path, folder_id, filename)
-        # Test de lecture simple pour voir si ça connecte
-        gd._find_file_id() 
-        return {"status": "SUCCÈS", "message": "Connexion Google Drive établie !"}
-    except Exception as e:
-        return {"status": "ÉCHEC", "error": str(e)}
-
-# --- 2. DIAGNOSTIC COMPLET DU ROBOT (La Boîte Noire) ---
-@app.get("/debug-full")
-def debug_scraper():
-    """
-    Lance le robot et CAPTURE tout ce qu'il dit (Erreurs comprises).
-    Affiche le résultat directement à l'écran.
-    """
-    print("🕵️ Lancement du diagnostic complet...")
-    
-    # Commande exacte pour lancer Scrapy
-    command = ["scrapy", "crawl", "elections_saint_andre"]
-    
-    try:
-        # On lance le processus en attendant la réponse (timeout 60s)
-        # cwd="scraper_backend" est crucial car on est à la racine sur Render
-        result = subprocess.run(
-            command,
-            cwd="scraper_backend",
-            capture_output=True,
-            text=True,
-            timeout=60
-        )
         
-        return {
-            "EXIT_CODE": result.returncode,
-            "STDOUT (Ce qui a marché)": result.stdout,
-            "STDERR (Les Erreurs)": result.stderr
-        }
+        # Téléchargement
+        data = gd.get_master_data()
+        return data
     except Exception as e:
-        return {"CRITICAL_ERROR": str(e)}
+        print(f"ERREUR LECTURE DRIVE: {e}")
+        return None
 
-# --- 3. Route standard pour le site ---
+# --- 2. ENDPOINT DASHBOARD (Ce que le site affiche) ---
 @app.get("/kpis")
 def get_kpis():
-    # Lecture du fichier Drive
-    try:
-        creds = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_PATH', './service_account_key.json')
-        folder = os.environ.get('GOOGLE_DRIVE_MASTER_FOLDER_ID')
-        file = os.environ.get('MASTER_JSON_FILENAME', 'master_data_sa.json')
-        gd = GoogleDriveManager(creds, folder, file)
-        return gd.get_master_data() or {"error": "Fichier vide ou absent"}
-    except:
-        return {"population_est": "En attente..."}
+    data = get_data_from_drive()
+    if data:
+        return data
+    else:
+        # Données d'attente si le fichier est vide ou inaccessible
+        return {
+            "population_est": "En attente...",
+            "maire_actuel_nom": "Initialisation...",
+            "system_monitoring": {
+                "status": "WAITING",
+                "logs": ["En attente de la première exécution du robot"]
+            }
+        }
+
+# --- 3. ENDPOINT ROBOT (Le Déclencheur) ---
+def run_spider_task():
+    print("🕷️ Lancement du Scrapy Spider...")
+    # On lance la commande depuis le dossier parent
+    subprocess.run(["scrapy", "crawl", "elections_saint_andre"], cwd="/opt/render/project/src/scraper_backend")
+
+@app.get("/trigger-scrape")
+async def trigger_scrape(background_tasks: BackgroundTasks):
+    background_tasks.add_task(run_spider_task)
+    return {"status": "SUCCÈS", "message": "Robot lancé ! Vérifiez le fichier sur Drive dans 30 secondes."}
+
+# --- 4. ENDPOINT DIAGNOSTIC (Pour vérifier que ça marche) ---
+@app.get("/debug-full")
+def debug_full():
+    result = subprocess.run(
+        ["scrapy", "crawl", "elections_saint_andre"],
+        cwd="/opt/render/project/src/scraper_backend",
+        capture_output=True,
+        text=True
+    )
+    return {"STDOUT": result.stdout, "STDERR": result.stderr}
 
 @app.get("/")
-def root(): return {"status": "Mode Diagnostic Activé"}
+def root():
+    return {"status": "API En Ligne", "version": "Finale"}
