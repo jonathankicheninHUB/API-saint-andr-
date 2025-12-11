@@ -13,161 +13,161 @@ const Dashboard = () => {
 
     useEffect(() => {
         refreshData();
+        // Optionnel : Rafraîchir toutes les 30 minutes pour avoir les données live
+        const interval = setInterval(refreshData, 1800000); 
+        return () => clearInterval(interval);
     }, []);
 
     const d = data || {};
-    // Récupération des logs techniques générés par le Pipeline
-    const mon = d.system_monitoring || { status: 'UNKNOWN', logs: [], last_run: 'Aucune donnée' };
+    // Récupération des logs techniques
+    const mon = d.system_monitoring || { status: 'UNKNOWN', execution_logs: [], last_run: 'Aucune donnée' };
 
-    // Styles (Dark Mode Pro)
+    // Styles (Design System V3 - Dark Analyst)
     const styles = {
-        page: {background: '#0f172a', minHeight: '100vh', color: 'white', padding: '24px', fontFamily: 'Inter, sans-serif'},
-        header: {display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px', borderBottom: '1px solid #1e293b', paddingBottom: '20px'},
+        page: {background: '#0a101a', minHeight: '100vh', color: '#e0e7ff', padding: '30px', fontFamily: 'system-ui, sans-serif'},
+        header: {borderBottom: '1px solid #1e293b', paddingBottom: '25px', marginBottom: '40px', display: 'flex', justifyContent: 'space-between', alignItems: 'center'},
         
-        grid: {display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px'},
-        card: {background: '#1e293b', padding: '20px', borderRadius: '8px', border: '1px solid #334155'},
-        label: {color: '#94a3b8', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px'},
-        value: {fontSize: '28px', fontWeight: '700', color: '#f8fafc'},
-        sub: {fontSize: '13px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '5px'},
-        sectionTitle: {fontSize: '18px', fontWeight: '600', color: '#e2e8f0', marginTop: '40px', marginBottom: '20px', borderLeft: '4px solid #3b82f6', paddingLeft: '10px'},
+        // Grille générale
+        grid: {display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '25px', marginBottom: '25px'},
         
-        table: {width: '100%', borderCollapse: 'collapse', fontSize: '14px'},
-        th: {textAlign: 'left', color: '#64748b', padding: '10px', borderBottom: '1px solid #334155'},
-        td: {padding: '10px', borderBottom: '1px solid #1e293b', color: '#cbd5e1'},
-
-        // Style Monitoring (Console)
-        monitorSection: {marginTop: '60px', background: '#111827', border: '1px solid #334155', borderRadius: '12px', padding: '0', overflow: 'hidden'},
-        monitorHead: {background: '#1e293b', padding: '15px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #334155'},
-        monitorTitle: {color: '#94a3b8', fontWeight: 'bold', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px'},
-        console: {padding: '20px', fontFamily: 'monospace', fontSize: '12px', color: '#22c55e', maxHeight: '200px', overflowY: 'auto'},
-        logLine: {marginBottom: '5px', borderBottom: '1px dashed #374151', paddingBottom: '2px'}
-    };
-
-    // Fonctions d'aide (ex: couleur du statut)
-    const getStatusColor = (status) => {
-        if (status === 'SUCCESS') return '#10b981';
-        if (status === 'WARNING_BACKUP' || status === 'WAITING') return '#f59e0b';
-        if (status === 'CRITICAL_FAILURE') return '#ef4444';
-        return '#6b7280';
+        // Carte Standard
+        card: {background: '#1a202c', padding: '25px', borderRadius: '10px', border: '1px solid #334155', transition: 'transform 0.2s', cursor: 'default'},
+        cardLabel: {color: '#94a3b8', fontSize: '13px', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px'},
+        cardValue: {fontSize: '36px', fontWeight: '700', color: '#fff', lineHeight: 1},
+        cardSub: {fontSize: '14px', marginTop: '8px'},
+        
+        // Titres de Section
+        sectionTitle: {fontSize: '22px', fontWeight: '600', color: '#ffffff', marginTop: '40px', marginBottom: '20px', borderLeft: '5px solid #007bff', paddingLeft: '15px'},
+        
+        // Monitoring Console
+        monitorSection: {marginTop: '60px', background: '#111827', borderRadius: '12px', overflow: 'hidden'},
+        monitorHead: {background: '#2563eb', padding: '15px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: 'white'},
+        console: {padding: '20px', fontFamily: 'monospace', fontSize: '12px', color: '#00cc66', maxHeight: '200px', overflowY: 'auto', background: '#000000'},
+        statusDot: (status) => ({
+            height: '10px', width: '10px', borderRadius: '50%', display: 'inline-block', marginRight: '8px',
+            backgroundColor: status === 'SUCCESS' ? '#10b981' : status === 'CRITICAL_FAILURE' ? '#ef4444' : '#f59e0b'
+        })
     };
 
     return (
         <div style={styles.page}>
-            {/* EN-TÊTE */}
+            {/* EN-TÊTE ET CONTRÔLE */}
             <div style={styles.header}>
                 <div>
-                    <h1 style={{fontSize: '24px', fontWeight: 'bold', margin: 0}}>OODA SAINT-ANDRÉ</h1>
-                    <div style={{color: '#64748b', fontSize: '14px'}}>Data Intelligence Municipale 2026</div>
+                    <h1 style={{fontSize: '28px', fontWeight: '800', margin: 0, color: '#007bff'}}>OODA PIPELINE</h1>
+                    <div style={{color: '#94a3b8', fontSize: '16px'}}>Analyse Électorale & Territoriale - Saint-André 2026</div>
                 </div>
-                <button onClick={refreshData} style={{background: '#2563eb', border: 'none', color: 'white', padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold'}}>
-                    Actualiser les Données
+                <button onClick={refreshData} style={{background: '#007bff', border: 'none', color: 'white', padding: '10px 20px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', boxShadow: '0 4px 10px rgba(0, 123, 255, 0.3)'}}>
+                    Rafraîchir les Données
                 </button>
             </div>
 
-            {/* --- SECTION 1 : SOCIO-DÉMOGRAPHIE (API GOUV / INSEE) --- */}
-            <div style={styles.sectionTitle}>1. SOCIO-DÉMOGRAPHIE & ÉCONOMIE</div>
+            {/* --- 1. INDICATEURS CLÉS & DÉMOGRAPHIE --- */}
+            <div style={styles.sectionTitle}>1. VUE D'ENSEMBLE & DYNAMIQUE SOCIALE</div>
             <div style={styles.grid}>
-                <div style={styles.card}>
-                    <div style={styles.label}>Population Totale</div>
-                    <div style={styles.value}>{d.population_est || "-"}</div>
-                    <div style={{...styles.sub, color: '#3b82f6'}}>Densité : {d.densite}</div>
+                {/* Carte Population (LIVE) */}
+                <div style={{...styles.card, borderLeft: '5px solid #007bff'}}>
+                    <div style={styles.cardLabel}>Population (INSEE)</div>
+                    <div style={styles.cardValue}>{d.population_est || "-"}</div>
+                    <div style={styles.cardSub}>Densité : {d.densite || "-"}</div>
                 </div>
-                <div style={styles.card}>
-                    <div style={styles.label}>Taux de Chômage</div>
-                    <div style={{...styles.value, color: '#f87171'}}>{d.taux_chomage || "-"}</div>
-                    <div style={styles.sub}>Revenu Médian : {d.revenu_median}</div>
+                {/* Carte Maire Actuel */}
+                <div style={{...styles.card, borderLeft: '5px solid #10b981'}}>
+                    <div style={styles.cardLabel}>Maire en Exercice</div>
+                    <div style={styles.cardValue} style={{...styles.cardValue, color: '#10b981'}}>{d.maire_actuel_nom || "-"}</div>
+                    <div style={styles.cardSub}>Score 2020 : {d.maire_actuel_score || "-"}</div>
                 </div>
-                <div style={styles.card}>
-                    <div style={styles.label}>% Jeunesse (-25 ans)</div>
-                    <div style={styles.value}>{d.part_jeunes || "-"}</div>
-                    <div style={styles.sub}>Base électorale volatile</div>
+                {/* Carte Taux de Chômage */}
+                <div style={{...styles.card, borderLeft: '5px solid #f97316'}}>
+                    <div style={styles.cardLabel}>Taux de Chômage</div>
+                    <div style={styles.cardValue} style={{...styles.cardValue, color: '#f97316'}}>{d.taux_chomage || "-"}</div>
+                    <div style={styles.cardSub}>Revenu Médian : {d.revenu_median || "-"}</div>
                 </div>
-                <div style={styles.card}>
-                    <div style={styles.label}>Superficie Totale</div>
-                    <div style={styles.value}>{d.surface || "-"}</div>
-                    <div style={styles.sub}>Espaces Verts : {d.espaces_verts_ha}</div>
+                {/* Carte Abstention 2020 */}
+                <div style={{...styles.card, borderLeft: '5px solid #ef4444'}}>
+                    <div style={styles.cardLabel}>Abstention Mun. 2020</div>
+                    <div style={styles.cardValue} style={{...styles.cardValue, color: '#ef4444'}}>{d.abstention_mun_2020 || "-"}</div>
+                    <div style={styles.cardSub}>Réserve de voix pour 2026</div>
                 </div>
             </div>
 
-            {/* --- SECTION 2 : ÉDUCATION & CONDITIONS DE VIE --- */}
-            <div style={styles.sectionTitle}>2. ÉDUCATION & CONDITIONS DE VIE</div>
+            {/* --- 2. ANALYSE SOCIOLOGIQUE & CLIMAT --- */}
+            <div style={styles.sectionTitle}>2. FACTEURS CLÉS (Éducation, Logement, Sécurité)</div>
             <div style={styles.grid}>
+                {/* % Sans Diplôme */}
                 <div style={styles.card}>
-                    <div style={styles.label}>% Sans Diplôme</div>
-                    <div style={{...styles.value, color: '#fcd34d'}}>{d.sans_diplome_pct || "-"}</div>
-                    <div style={styles.sub}>Indicateur social clé</div>
+                    <div style={styles.cardLabel}>% Sans Diplôme</div>
+                    <div style={{...styles.cardValue, color: '#fcd34d'}}>{d.sans_diplome_pct || "-"}</div>
+                    <div style={styles.cardSub}>Diplôme Sup. : {d.diplome_sup_pct || "-"}</div>
                 </div>
+                {/* % Logement Social */}
                 <div style={styles.card}>
-                    <div style={styles.label}>% Diplôme Supérieur</div>
-                    <div style={{...styles.value, color: '#60a5fa'}}>{d.diplome_sup_pct || "-"}</div>
-                    <div style={styles.sub}>Catégories Socio-Pro</div>
+                    <div style={styles.cardLabel}>% Logement Social (HLM)</div>
+                    <div style={{...styles.cardValue, color: '#9333ea'}}>{d.logement_social_pct || "-"}</div>
+                    <div style={styles.cardSub}>% Taxe Exo. : {d.taxe_exo_pct || "-"}</div>
                 </div>
+                {/* Taux de Délinquance */}
                 <div style={styles.card}>
-                    <div style={styles.label}>% Logement Social (HLM)</div>
-                    <div style={styles.value}>{d.logement_social_pct || "-"}</div>
-                    <div style={styles.sub}>Taxe Exo. : {d.taxe_exo_pct}</div>
+                    <div style={styles.cardLabel}>Taux de Délinquance</div>
+                    <div style={{...styles.cardValue, color: '#ef4444'}}>{d.taux_delinquance || "-"}</div>
+                    <div style={styles.cardSub}>Qualité de Vie (Sécurité)</div>
                 </div>
+                {/* Espaces Verts */}
                 <div style={styles.card}>
-                    <div style={styles.label}>Taux de Délinquance</div>
-                    <div style={{...styles.value, color: '#ef4444'}}>{d.taux_delinquance || "-"}</div>
-                    <div style={styles.sub}>Sentiment d'insécurité</div>
+                    <div style={styles.cardLabel}>Espaces Verts</div>
+                    <div style={{...styles.cardValue, color: '#10b981'}}>{d.espaces_verts_ha || "-"}</div>
+                    <div style={styles.cardSub}>Superficie : {d.surface || "-"}</div>
                 </div>
             </div>
 
-            {/* --- SECTION 3 : DYNAMIQUE POLITIQUE & ABSTENTION --- */}
-            <div style={styles.sectionTitle}>3. DYNAMIQUE POLITIQUE & ABSTENTION</div>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '20px'}}>
-                <div style={styles.card}>
-                    <div style={styles.label}>Maire Sortant</div>
-                    <div style={styles.value}>{d.maire_actuel_nom || "-"}</div>
-                    <div style={{...styles.sub, color: '#10b981', fontWeight: 'bold'}}>{d.maire_actuel_score}</div>
-                    <div style={{marginTop: '15px', fontSize: '13px', color: '#94a3b8'}}>{d.tendance_2020}</div>
-                    
-                    <div style={{...styles.label, marginTop: '20px'}}>Réserves de voix</div>
-                    <div style={{fontSize:'16px', fontWeight:'bold', color: '#f7ad71'}}>{d.abstention_mun_2020}</div>
-                    <div style={styles.sub}>Abstention Mun. 2020</div>
-                    <div style={{fontSize:'16px', fontWeight:'bold', color: '#f7ad71', marginTop: '10px'}}>{d.abstention_pres_2022}</div>
-                    <div style={styles.sub}>Abstention Pres. 2022</div>
-                </div>
-
-                <div style={styles.card}>
-                    <div style={styles.label}>Historique des Mandats</div>
-                    <table style={styles.table}>
-                        <thead>
-                            <tr>
-                                <th style={styles.th}>Année</th>
-                                <th style={styles.th}>Vainqueur</th>
-                                <th style={styles.th}>Score</th>
-                                <th style={styles.th}>Écart</th>
+            {/* --- 3. HISTORIQUE POLITIQUE --- */}
+            <div style={styles.sectionTitle}>3. HISTORIQUE DES CYCLES MUNICIPAUX</div>
+            <div style={{...styles.card, background: '#1a202c', padding: '0'}}>
+                <table style={{...styles.table, width: '100%', borderCollapse: 'collapse'}}>
+                    <thead>
+                        <tr style={{background: '#1a202c'}}>
+                            <th style={{...styles.th, width: '10%'}}>Année</th>
+                            <th style={{...styles.th, width: '40%'}}>Vainqueur</th>
+                            <th style={{...styles.th, width: '15%'}}>Parti</th>
+                            <th style={{...styles.th, width: '15%'}}>Score</th>
+                            <th style={{...styles.th, width: '20%'}}>Tension du Scrutin</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {d.historique_maires ? d.historique_maires.map((m, i) => (
+                            <tr key={i} style={{borderTop: '1px solid #334155'}}>
+                                <td style={{...styles.td, color: '#94a3b8', padding: '15px'}}>{m.annee}</td>
+                                <td style={{...styles.td, fontWeight: 'bold', padding: '15px'}}>{m.vainqueur}</td>
+                                <td style={{...styles.td, padding: '15px'}}>{m.parti}</td>
+                                <td style={{...styles.td, padding: '15px'}}>{m.score}</td>
+                                <td style={{...styles.td, color: m.ecart === 'Serré' ? '#f97316' : '#10b981', padding: '15px'}}>{m.ecart}</td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {d.historique_maires ? d.historique_maires.map((m, i) => (
-                                <tr key={i}>
-                                    <td style={{...styles.td, color: '#64748b'}}>{m.annee}</td>
-                                    <td style={{...styles.td, fontWeight: 'bold'}}>{m.vainqueur}</td>
-                                    <td style={styles.td}>{m.score}</td>
-                                    <td style={styles.td}>{m.ecart}</td>
-                                </tr>
-                            )) : <tr><td colSpan="4" style={styles.td}>Chargement...</td></tr>}
-                        </tbody>
-                    </table>
-                </div>
+                        )) : <tr><td colSpan="5" style={{...styles.td, textAlign: 'center'}}>Chargement des données historiques...</td></tr>}
+                    </tbody>
+                </table>
             </div>
-            
-            {/* --- BLOC 4 : CONTRÔLE TECHNIQUE (Console) --- */}
+
+
+            {/* --- 4. CONSOLE DE CONTRÔLE TECHNIQUE (Monitoring) --- */}
             <div style={styles.monitorSection}>
                 <div style={styles.monitorHead}>
-                    <span style={styles.monitorTitle}>🛠️ CONSOLE DE CONTRÔLE TECHNIQUE | DERNIÈRE MAJ : {mon.last_run}</span>
-                    <span style={{fontSize: '12px', color: getStatusColor(mon.status)}}>STATUT : {mon.status}</span>
+                    <span style={{fontWeight: 'bold'}}>🛠️ CONSOLE DE CONTRÔLE TECHNIQUE</span>
+                    <div style={{display: 'flex', alignItems: 'center'}}>
+                        <span style={styles.statusDot(mon.status)}></span>
+                        Statut Pipeline: **{mon.status || "UNKNOWN"}** | Dernière Exécution: {d.last_update || "N/A"}
+                    </div>
                 </div>
                 <div style={styles.console}>
                     {mon.execution_logs && mon.execution_logs.length > 0 ? (
-                        mon.execution_logs.map((log, i) => <div key={i} style={styles.logLine}>{`> ${log}`}</div>)
+                        mon.execution_logs.map((log, i) => <div key={i}>{log}</div>)
                     ) : (
-                        <div style={{color:'#6b7280'}}>En attente du prochain rapport d'exécution...</div>
+                        <div style={{color:'#64748b'}}>En attente du premier rapport d'exécution complet. Lancez le /trigger-scrape.</div>
                     )}
                 </div>
+            </div>
+
+            <div style={{textAlign: 'center', marginTop: '30px', fontSize: '12px', color: '#475569'}}>
+                Data OSINT (Open Source Intelligence) - Pipeline Render/Vercel/Drive - {new Date().getFullYear()}
             </div>
         </div>
     );
